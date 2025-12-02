@@ -68,6 +68,7 @@ private:
         int varId = 0;
         int count = 0;
         varswap::VarCategory category = varswap::VarCategory::Unknown;
+        bool hasNumericVarId = true;
         std::unordered_map<int, int> patternCounts;
         std::vector<std::pair<int, int>> sortedPatterns;
         bool patternsDirty = true;

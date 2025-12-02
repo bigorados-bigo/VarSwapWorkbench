@@ -35,6 +35,30 @@ int composeProjectileRaw(int varId, int delta, int base) {
     return varId * base + delta;
 }
 
+void applyProjectileCategoryOverrides(Occurrence& occ) {
+    if (occ.category != VarCategory::Projectile) {
+        return;
+    }
+    if (!occ.valuePtr) {
+        return;
+    }
+    if (occ.encoding != ValueEncoding::TensComposite && occ.encoding != ValueEncoding::ProjectileComposite) {
+        return;
+    }
+    int raw = *occ.valuePtr;
+    int base = (occ.encoding == ValueEncoding::ProjectileComposite) ? projectileBase(raw) : 10;
+    if (base <= 0) {
+        return;
+    }
+    int remainder = raw % base;
+    if (remainder < 0) {
+        remainder += base;
+    }
+    if (remainder == 0) {
+        occ.category = VarCategory::ProjectileNoChange;
+    }
+}
+
 Occurrence makeOccurrence(OccurrenceKind kind,
                           VarCategory category,
                           Sequence* seq,
@@ -46,7 +70,9 @@ Occurrence makeOccurrence(OccurrenceKind kind,
                           int blockIndex,
                           ValueEncoding encoding,
                           int* valuePtr) {
-    return {kind, category, seq, frame, ifBlock, efBlock, seqIndex, frameIndex, blockIndex, encoding, valuePtr};
+    Occurrence occ{kind, category, seq, frame, ifBlock, efBlock, seqIndex, frameIndex, blockIndex, encoding, valuePtr};
+    applyProjectileCategoryOverrides(occ);
+    return occ;
 }
 
 } // namespace
@@ -321,6 +347,8 @@ const char* categoryLabel(VarCategory category) {
     switch (category) {
         case VarCategory::Projectile:
             return "Projectile";
+        case VarCategory::ProjectileNoChange:
+            return "Proj. Null";
         case VarCategory::Extra:
             return "Extra";
         case VarCategory::Dash:

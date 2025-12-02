@@ -50,6 +50,10 @@ std::uint64_t makeSummaryKey(int varId, VarCategory category, bool isGlobal) {
            static_cast<std::uint32_t>(varId);
 }
 
+bool categoryUsesNumericVarId(VarCategory category) {
+    return !(category == VarCategory::Assist || category == VarCategory::Dash);
+}
+
 enum SummaryColumnId {
     SummaryColumnVar = 0,
     SummaryColumnCategory = 1,
@@ -306,7 +310,10 @@ void VarSwapPane::drawSummary(const std::vector<int>& visibleIndices) {
                     auto& entry = entries[order[row]];
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    bool isActive = (selectedVarId == entry.varId) && (selectedCategory == entry.category);
+                    bool isActive = (selectedCategory == entry.category);
+                    if (entry.hasNumericVarId) {
+                        isActive = isActive && (selectedVarId == entry.varId);
+                    }
                     if (entry.category == VarCategory::Projectile && isActive) {
                         if (selectedProjectileFlagValid) {
                             isActive = (selectedProjectileIsGlobal == entry.isProjectileGlobal);
@@ -320,7 +327,7 @@ void VarSwapPane::drawSummary(const std::vector<int>& visibleIndices) {
                     }
                     ImGui::PushID(entry.varId);
                     if (ImGui::Selectable(entry.label.c_str(), isActive, ImGuiSelectableFlags_SpanAllColumns)) {
-                        selectedVarId = entry.varId;
+                        selectedVarId = entry.hasNumericVarId ? entry.varId : std::numeric_limits<int>::min();
                         selectedCategory = entry.category;
                         if (entry.category == VarCategory::Projectile) {
                             selectedProjectileFlagValid = true;
@@ -375,9 +382,12 @@ std::vector<VarSwapPane::SummaryEntry> VarSwapPane::buildSummaryEntries(const st
         const auto& occ = occurrences[row];
         const auto& meta = metaFor(static_cast<size_t>(row));
         int varId = currentVar(occ);
-        std::uint64_t key = makeSummaryKey(varId, occ.category, meta.isGlobalProjectile);
+        bool hasNumericVarId = categoryUsesNumericVarId(occ.category);
+        int summaryVarId = hasNumericVarId ? varId : 0;
+        std::uint64_t key = makeSummaryKey(summaryVarId, occ.category, meta.isGlobalProjectile);
         auto& entry = summaryMap[key];
-        entry.varId = varId;
+        entry.varId = summaryVarId;
+        entry.hasNumericVarId = hasNumericVarId;
         entry.count++;
         entry.category = occ.category;
         entry.isProjectileGlobal = meta.isGlobalProjectile;
@@ -401,7 +411,11 @@ std::vector<VarSwapPane::SummaryEntry> VarSwapPane::buildSummaryEntries(const st
         bool hasGlobalOps = entry.globalOpCount > 0;
         bool isGlobalRegister = (entry.category == VarCategory::Projectile) && isProjectileGlobal(entry.varId);
         entry.isProjectileGlobal = entry.category == VarCategory::Projectile && (entry.isProjectileGlobal || hasGlobalOps || isGlobalRegister);
-        entry.label = formatVarLabel(entry.varId);
+        if (entry.hasNumericVarId) {
+            entry.label = formatVarLabel(entry.varId);
+        } else {
+            entry.label = categoryLabel(entry.category);
+        }
         entry.sortedPatterns.clear();
         entries.push_back(std::move(entry));
     }
@@ -429,6 +443,10 @@ void VarSwapPane::sortSummaryEntries(std::vector<int>& order, const std::vector<
             if (lhs.varId == rhs.varId) return 0;
             return lhs.varId < rhs.varId ? -1 : 1;
         };
+        auto compareLabel = [&]() {
+            if (lhs.label == rhs.label) return 0;
+            return lhs.label < rhs.label ? -1 : 1;
+        };
 
         if (!sortSpecs || !sortSpecs->SpecsCount) {
             return compareVar() < 0;
@@ -439,7 +457,13 @@ void VarSwapPane::sortSummaryEntries(std::vector<int>& order, const std::vector<
             int delta = 0;
             switch (spec.ColumnUserID) {
                 case SummaryColumnVar:
-                    delta = (lhs.varId == rhs.varId) ? 0 : (lhs.varId < rhs.varId ? -1 : 1);
+                    if (lhs.hasNumericVarId && rhs.hasNumericVarId) {
+                        delta = (lhs.varId == rhs.varId) ? 0 : (lhs.varId < rhs.varId ? -1 : 1);
+                    } else if (!lhs.hasNumericVarId && !rhs.hasNumericVarId) {
+                        delta = compareLabel();
+                    } else {
+                        delta = lhs.hasNumericVarId ? -1 : 1;
+                    }
                     break;
                 case SummaryColumnCategory:
                     delta = static_cast<int>(lhs.category) - static_cast<int>(rhs.category);
@@ -482,7 +506,11 @@ void VarSwapPane::drawVarDetailPanel(SummaryEntry* entry) {
     }
 
     bool isGlobalProjectile = entry->isProjectileGlobal;
-    ImGui::Text("Var %d (%s)", entry->varId, categoryLabel(entry->category));
+    if (entry->hasNumericVarId) {
+        ImGui::Text("Var %d (%s)", entry->varId, categoryLabel(entry->category));
+    } else {
+        ImGui::Text("%s variable", categoryLabel(entry->category));
+    }
     if (isGlobalProjectile) {
         ImGui::SameLine();
         std::string description = "Projectile global value (EF6 #100/#101)";
@@ -501,6 +529,11 @@ void VarSwapPane::drawVarDetailPanel(SummaryEntry* entry) {
 
 void VarSwapPane::drawGlobalReplaceControls(const SummaryEntry* entry) {
     if (!entry) {
+        return;
+    }
+
+    if (!entry->hasNumericVarId) {
+        ImGui::TextDisabled("Global replace is not available for %s vars.", categoryLabel(entry->category));
         return;
     }
 
@@ -536,7 +569,11 @@ void VarSwapPane::drawPatternList(SummaryEntry* entry) {
         return;
     }
 
-    ImGui::Text("Patterns with var %d", entry->varId);
+    if (entry->hasNumericVarId) {
+        ImGui::Text("Patterns with var %d", entry->varId);
+    } else {
+        ImGui::Text("Patterns with %s", categoryLabel(entry->category));
+    }
     if (entry->patternCounts.empty()) {
         ImGui::TextDisabled("No pattern references in view.");
         return;
@@ -553,18 +590,27 @@ void VarSwapPane::drawPatternList(SummaryEntry* entry) {
 }
 
 VarSwapPane::SummaryEntry* VarSwapPane::findSummaryEntry(int varId, VarCategory category, bool matchProjectileFlag, bool projectileIsGlobal) {
-    if (varId == std::numeric_limits<int>::min()) {
+    if (category == VarCategory::Count) {
         return nullptr;
     }
     for (auto& entry : summaryCache) {
-        if (entry.varId == varId && entry.category == category) {
-            if (matchProjectileFlag && category == VarCategory::Projectile) {
-                if (entry.isProjectileGlobal != projectileIsGlobal) {
-                    continue;
-                }
-            }
-            return &entry;
+        if (entry.category != category) {
+            continue;
         }
+        if (matchProjectileFlag && category == VarCategory::Projectile) {
+            if (entry.isProjectileGlobal != projectileIsGlobal) {
+                continue;
+            }
+        }
+        if (categoryUsesNumericVarId(category)) {
+            if (varId == std::numeric_limits<int>::min()) {
+                continue;
+            }
+            if (entry.varId != varId) {
+                continue;
+            }
+        }
+        return &entry;
     }
     return nullptr;
 }
@@ -725,15 +771,20 @@ void VarSwapPane::drawTable(const std::vector<int>& visibleIndices) {
                 int rawValue = occ.valuePtr ? *occ.valuePtr : 0;
                 const auto& meta = metaFor(index);
                 bool highlight = false;
-                if (selectedVarId != std::numeric_limits<int>::min()) {
-                    if (selectedCategory != VarCategory::Count) {
-                        highlight = (selectedVarId == varId) && (occ.category == selectedCategory);
-                    } else {
-                        highlight = (selectedVarId == varId);
+                bool hasCategorySelection = (selectedCategory != VarCategory::Count);
+                bool hasVarSelection = (selectedVarId != std::numeric_limits<int>::min());
+                if (hasCategorySelection) {
+                    if (occ.category == selectedCategory) {
+                        highlight = true;
+                        if (categoryUsesNumericVarId(selectedCategory)) {
+                            highlight = hasVarSelection && (selectedVarId == varId);
+                        }
+                        if (highlight && selectedCategory == VarCategory::Projectile && selectedProjectileFlagValid) {
+                            highlight = (meta.isGlobalProjectile == selectedProjectileIsGlobal);
+                        }
                     }
-                    if (highlight && selectedCategory == VarCategory::Projectile && selectedProjectileFlagValid) {
-                        highlight = (meta.isGlobalProjectile == selectedProjectileIsGlobal);
-                    }
+                } else if (hasVarSelection) {
+                    highlight = (selectedVarId == varId);
                 }
 
                 ImGui::TableNextRow();
@@ -749,7 +800,11 @@ void VarSwapPane::drawTable(const std::vector<int>& visibleIndices) {
                 ImGui::Checkbox(checkboxId.c_str(), &state.selected);
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%d", varId);
+                if (categoryUsesNumericVarId(occ.category)) {
+                    ImGui::Text("%d", varId);
+                } else {
+                    ImGui::TextUnformatted(categoryLabel(occ.category));
+                }
 
                 ImGui::TableSetColumnIndex(2);
                 ImGui::TextUnformatted(categoryLabel(occ.category));
@@ -1364,6 +1419,11 @@ void VarSwapPane::drawParameterControls(int rowId, Occurrence& occ, RowState& st
 void VarSwapPane::applyGlobalReplace(const SummaryEntry& entry, int toVar) {
     if (!frameData || !frameData->m_loaded) {
         globalReplaceStatus = "Load a HA6 file first.";
+        return;
+    }
+
+    if (!entry.hasNumericVarId) {
+        globalReplaceStatus = "Global replace is not available for this category.";
         return;
     }
 

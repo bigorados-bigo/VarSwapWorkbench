@@ -10,6 +10,7 @@ namespace varswap {
 
 enum class VarCategory {
     Projectile,
+    ProjectileNoChange,
     Extra,
     Dash,
     Assist,
