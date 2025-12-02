@@ -1,0 +1,15 @@
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/glad.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/imgui.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/varswap_workbench.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/INSTALL.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/ALL_BUILD.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/CMakeFiles/ZERO_CHECK.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/CMakeFiles/uninstall.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/CMakeFiles/INSTALL.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/CMakeFiles/ALL_BUILD.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/glm/CMakeFiles/INSTALL.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/tinyalloc/CMakeFiles/tinyalloc.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/tinyalloc/CMakeFiles/INSTALL.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_core/CMakeFiles/ha6_core.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_core/CMakeFiles/varswap_module.dir
+E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_core/CMakeFiles/INSTALL.dir

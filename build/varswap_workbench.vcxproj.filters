@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="E:\Dev\ReplaceVar\VarSwapWorkbench\tools\varswap\workbench_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="E:\Dev\ReplaceVar\VarSwapWorkbench\tools\varswap\workbench_settings_stub.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="E:\Dev\ReplaceVar\VarSwapWorkbench\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="E:\Dev\ReplaceVar\VarSwapWorkbench\res\res.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{07439087-3C29-3D93-8B8A-D6D3B8A26F3A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

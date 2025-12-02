@@ -1,0 +1,10 @@
+^E:\DEV\REPLACEVAR\VARSWAPWORKBENCH\VARSWAP_CORE\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/Dev/ReplaceVar/VarSwapWorkbench -BE:/Dev/ReplaceVar/VarSwapWorkbench/build --check-stamp-file E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_core/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

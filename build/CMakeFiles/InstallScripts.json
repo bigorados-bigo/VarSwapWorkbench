@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"E:/Dev/ReplaceVar/VarSwapWorkbench/build/cmake_install.cmake",
+		"E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/cmake_install.cmake",
+		"E:/Dev/ReplaceVar/VarSwapWorkbench/build/glm/glm/cmake_install.cmake",
+		"E:/Dev/ReplaceVar/VarSwapWorkbench/build/tinyalloc/cmake_install.cmake",
+		"E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_core/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

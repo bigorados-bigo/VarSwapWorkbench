@@ -1,0 +1,10 @@
+^E:\DEV\REPLACEVAR\VARSWAPWORKBENCH\BUILD\CMAKEFILES\74BB5621FAAB4832632B7402ECC4CCC7\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SE:/Dev/ReplaceVar/VarSwapWorkbench -BE:/Dev/ReplaceVar/VarSwapWorkbench/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file E:/Dev/ReplaceVar/VarSwapWorkbench/build/varswap_workbench.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
