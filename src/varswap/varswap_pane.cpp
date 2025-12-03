@@ -310,23 +310,14 @@ void VarSwapPane::drawSummary(const std::vector<int>& visibleIndices) {
                     auto& entry = entries[order[row]];
                     ImGui::TableNextRow();
                     ImGui::TableSetColumnIndex(0);
-                    bool isActive = (selectedCategory == entry.category);
-                    if (entry.hasNumericVarId) {
-                        isActive = isActive && (selectedVarId == entry.varId);
-                    }
-                    if (entry.category == VarCategory::Projectile && isActive) {
-                        if (selectedProjectileFlagValid) {
-                            isActive = (selectedProjectileIsGlobal == entry.isProjectileGlobal);
-                        } else {
-                            isActive = false;
-                        }
-                    }
+                    bool isActive = (selectedSummaryKey != 0 && selectedSummaryKey == entry.cacheKey);
                     bool isGlobalProjectile = entry.isProjectileGlobal;
                     if (isGlobalProjectile) {
                         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.25f, 1.f));
                     }
-                    ImGui::PushID(entry.varId);
+                    ImGui::PushID(reinterpret_cast<void*>(static_cast<uintptr_t>(entry.cacheKey ? entry.cacheKey : static_cast<std::uint64_t>(entry.varId))));
                     if (ImGui::Selectable(entry.label.c_str(), isActive, ImGuiSelectableFlags_SpanAllColumns)) {
+                        selectedSummaryKey = entry.cacheKey;
                         selectedVarId = entry.hasNumericVarId ? entry.varId : std::numeric_limits<int>::min();
                         selectedCategory = entry.category;
                         if (entry.category == VarCategory::Projectile) {
@@ -336,6 +327,9 @@ void VarSwapPane::drawSummary(const std::vector<int>& visibleIndices) {
                             selectedProjectileFlagValid = false;
                             selectedProjectileIsGlobal = false;
                         }
+                        // Always force-detail refresh on click
+                        lastGlobalSelection = std::numeric_limits<int>::min();
+                        lastGlobalSelectionCategory = VarCategory::Count;
                     }
                     ImGui::PopID();
                     if (isGlobalProjectile) {
@@ -361,12 +355,7 @@ void VarSwapPane::drawSummary(const std::vector<int>& visibleIndices) {
 
         ImGui::TableNextColumn();
         ImGui::BeginChild("VarSummaryDetailPanel", ImVec2(0, 0), true);
-        SummaryEntry* selectedEntry = const_cast<SummaryEntry*>(
-            findSummaryEntry(
-                selectedVarId,
-                selectedCategory,
-                selectedProjectileFlagValid && selectedCategory == VarCategory::Projectile,
-                selectedProjectileIsGlobal));
+        SummaryEntry* selectedEntry = findSummaryEntryByKey(selectedSummaryKey);
         drawVarDetailPanel(selectedEntry);
         ImGui::EndChild();
 
@@ -384,13 +373,17 @@ std::vector<VarSwapPane::SummaryEntry> VarSwapPane::buildSummaryEntries(const st
         int varId = currentVar(occ);
         bool hasNumericVarId = categoryUsesNumericVarId(occ.category);
         int summaryVarId = hasNumericVarId ? varId : 0;
-        std::uint64_t key = makeSummaryKey(summaryVarId, occ.category, meta.isGlobalProjectile);
+
+        bool keyIsGlobal = (occ.category == VarCategory::Projectile) && meta.isGlobalProjectile;
+        std::uint64_t key = makeSummaryKey(summaryVarId, occ.category, keyIsGlobal);
         auto& entry = summaryMap[key];
         entry.varId = summaryVarId;
         entry.hasNumericVarId = hasNumericVarId;
         entry.count++;
         entry.category = occ.category;
-        entry.isProjectileGlobal = meta.isGlobalProjectile;
+        if (occ.category == VarCategory::Projectile) {
+            entry.isProjectileGlobal = entry.isProjectileGlobal || meta.isGlobalProjectile;
+        }
         entry.patternCounts[occ.seqIndex]++;
         entry.patternsDirty = true;
         if (meta.isGlobalProjectile) {
@@ -589,28 +582,14 @@ void VarSwapPane::drawPatternList(SummaryEntry* entry) {
     ImGui::EndChild();
 }
 
-VarSwapPane::SummaryEntry* VarSwapPane::findSummaryEntry(int varId, VarCategory category, bool matchProjectileFlag, bool projectileIsGlobal) {
-    if (category == VarCategory::Count) {
+VarSwapPane::SummaryEntry* VarSwapPane::findSummaryEntryByKey(std::uint64_t key) {
+    if (key == 0) {
         return nullptr;
     }
     for (auto& entry : summaryCache) {
-        if (entry.category != category) {
-            continue;
+        if (entry.cacheKey == key) {
+            return &entry;
         }
-        if (matchProjectileFlag && category == VarCategory::Projectile) {
-            if (entry.isProjectileGlobal != projectileIsGlobal) {
-                continue;
-            }
-        }
-        if (categoryUsesNumericVarId(category)) {
-            if (varId == std::numeric_limits<int>::min()) {
-                continue;
-            }
-            if (entry.varId != varId) {
-                continue;
-            }
-        }
-        return &entry;
     }
     return nullptr;
 }
@@ -760,6 +739,8 @@ void VarSwapPane::drawTable(const std::vector<int>& visibleIndices) {
             const_cast<ImGuiTableSortSpecs*>(sortSpecs)->SpecsDirty = false;
         }
 
+        SummaryEntry* selectedEntry = findSummaryEntryByKey(selectedSummaryKey);
+
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(sortedIndices.size()));
         while (clipper.Step()) {
@@ -771,20 +752,22 @@ void VarSwapPane::drawTable(const std::vector<int>& visibleIndices) {
                 int rawValue = occ.valuePtr ? *occ.valuePtr : 0;
                 const auto& meta = metaFor(index);
                 bool highlight = false;
-                bool hasCategorySelection = (selectedCategory != VarCategory::Count);
-                bool hasVarSelection = (selectedVarId != std::numeric_limits<int>::min());
-                if (hasCategorySelection) {
-                    if (occ.category == selectedCategory) {
-                        highlight = true;
-                        if (categoryUsesNumericVarId(selectedCategory)) {
-                            highlight = hasVarSelection && (selectedVarId == varId);
-                        }
-                        if (highlight && selectedCategory == VarCategory::Projectile && selectedProjectileFlagValid) {
-                            highlight = (meta.isGlobalProjectile == selectedProjectileIsGlobal);
+                if (selectedEntry) {
+                    if (occ.category == selectedEntry->category) {
+                        if (selectedEntry->hasNumericVarId) {
+                            if (currentVar(occ) == selectedEntry->varId) {
+                                if (selectedEntry->category == VarCategory::Projectile) {
+                                    if (selectedEntry->isProjectileGlobal == meta.isGlobalProjectile) {
+                                        highlight = true;
+                                    }
+                                } else {
+                                    highlight = true;
+                                }
+                            }
+                        } else {
+                            highlight = true;
                         }
                     }
-                } else if (hasVarSelection) {
-                    highlight = (selectedVarId == varId);
                 }
 
                 ImGui::TableNextRow();

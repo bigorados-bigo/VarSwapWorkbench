@@ -98,6 +98,7 @@ private:
     std::string searchText;
     bool pendingOnly = false;
     bool projectileGlobalsOnly = false;
+    std::uint64_t selectedSummaryKey = 0;
     int selectedVarId = std::numeric_limits<int>::min();
     varswap::VarCategory selectedCategory = varswap::VarCategory::Count;
     bool selectedProjectileFlagValid = false;
@@ -127,7 +128,7 @@ private:
     std::vector<SummaryEntry> buildSummaryEntries(const std::vector<int>& visibleIndices);
     std::vector<SummaryEntry>& getSummaryEntries(const std::vector<int>& visibleIndices);
     void invalidateSummaryCache();
-    SummaryEntry* findSummaryEntry(int varId, varswap::VarCategory category, bool matchProjectileFlag, bool projectileIsGlobal);
+    SummaryEntry* findSummaryEntryByKey(std::uint64_t key);
     const std::vector<std::pair<int, int>>& ensureSortedPatterns(SummaryEntry& entry);
     std::vector<int> buildVisibleIndexList();
     bool matchesFilters(size_t index, const std::string& needleLower);
